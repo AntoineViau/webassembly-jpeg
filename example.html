@@ -16,38 +16,57 @@
     <script async type="text/javascript" src="example.js"></script>
     <script>
 
-        let slider = document.getElementById("quality");
-        slider.oninput = function () {
-            let quality = this.value;
-            console.log(quality)
-        };
+        
 
         var Module = {
             onRuntimeInitialized: () => {
 
-                let doData = Module.cwrap(
-                    'doData',
-                    'number', // ret value
+                let setSrcImage = Module.cwrap(
+                    'setSrcImage',
+                    'number', // ret value : uncompressed image
                     [
                         'number', // jpegData pointer
                         'number', // jpegData size
+                    ]);
+
+                let compress = Module.cwrap(
+                    'compress',
+                    'number', // ret value : uncompressed image
+                    [
                         'number' // quality
                     ]);
 
-                var xhr = new XMLHttpRequest();
-                xhr.open("GET", "/testimg.jpg", true);
-                xhr.responseType = "arraybuffer";
-                xhr.onload = function (e) {
-                    var srcTa = new Uint8Array(this.response);
-                    var srcBlob = new Blob([srcTa], { type: "image/jpeg" });
-                    let srcBuf = Module._malloc(srcTa.length * srcTa.BYTES_PER_ELEMENT);
-                    Module.HEAPU8.set(srcTa, srcBuf);
-                    dstBuf = doData(srcBuf, srcTa.length, 20);
-                    Module._free(srcBuf);
-                    let width = getValue(dstBuf, 'i16');
-                    let height = getValue(dstBuf + 2, 'i16');
-                    let bmp = dstBuf + 4;
+                let width, height;
+                let canvas, ctx;
 
+                function loadSrcImage(imgUrl) {
+                    let xhr = new XMLHttpRequest();
+                    xhr.open("GET", imgUrl, true);
+                    xhr.responseType = "arraybuffer";
+                    xhr.onload = function (e) {
+                        let srcTa = new Uint8Array(this.response);
+                        let srcBlob = new Blob([srcTa], { type: "image/jpeg" });
+                        let srcBuf = Module._malloc(srcTa.length * srcTa.BYTES_PER_ELEMENT);
+                        Module.HEAPU8.set(srcTa, srcBuf);
+                        let srcImgBuf = setSrcImage(srcBuf, srcTa.length);
+                        Module._free(srcBuf);
+                        delete srcBlob; 
+                        delete srcTa;
+                        width = getValue(srcImgBuf, 'i16');
+                        height = getValue(srcImgBuf + 2, 'i16');
+
+                        canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        document.body.appendChild(canvas);
+                        ctx = canvas.getContext('2d');
+                        display(srcImgBuf);
+                    }
+                    xhr.send();
+                }
+
+                function display(raw) {
+                    let bmp = raw + 4;
                     let buffer = new Uint8Array(width * height * 4);
                     const type = 'i8';
                     for (let y = 0; y < height; y++) {
@@ -59,20 +78,23 @@
                             buffer[dstPos + 2] = getValue(bmp + srcPos + 2, type);
                             buffer[dstPos + 3] = 255;
                         }
-                    }
-                    Module._free(dstBuf);
+                    }                    
                     blob = new Blob([buffer], { type: 'application/octet-binary' });
-                    var url = URL.createObjectURL(blob);
-                    let canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-                    document.body.appendChild(canvas);
-                    let ctx = canvas.getContext('2d');
-                    var idata = ctx.createImageData(width, height);
+                    let url = URL.createObjectURL(blob);
+                    let idata = ctx.createImageData(width, height);
                     idata.data.set(buffer);
                     ctx.putImageData(idata, 0, 0);
+                }
+                
+                let slider = document.getElementById("quality");
+                slider.oninput = function () {
+                    let quality = this.value;
+                    let imgBuf = compress(quality);
+                    display(imgBuf);
+                    Module._free(imgBuf);
                 };
-                xhr.send();
+
+                loadSrcImage("/bouyous.jpg");
             }
         };
     </script>

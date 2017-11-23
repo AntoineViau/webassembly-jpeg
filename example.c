@@ -156,18 +156,38 @@ BYTE *EMSCRIPTEN_KEEPALIVE hexString(BYTE *str, int size)
 }
 
 // ---------------------------------------------------------------------------
-// TODO : 
-// - setSrcImage(jpegData)
-// - compresser en WASM, retourner le jpeg brut et l'afficher par JS
-BYTE *EMSCRIPTEN_KEEPALIVE doData(BYTE *jpegData, int size, int quality)
+
+BYTE *srcImageBmp;
+int srcImageWidth;
+int srcImageHeight;
+
+BYTE *EMSCRIPTEN_KEEPALIVE setSrcImage(BYTE *jpegData, int size)
 {
     BYTE *src = readJpeg(jpegData, size);
-    short width = ((short *)src)[0];
-    short height = ((short *)src)[1];
-
-    BYTE *bmp = &src[2 * 2];
-    BYTE *compressed = writeJpeg(bmp, width, height, quality);
-    int compressedSize = ((int*)compressed)[0];
-
-    return readJpeg(&compressed[4], compressedSize);
+    srcImageWidth = ((short *)src)[0];
+    srcImageHeight = ((short *)src)[1];
+    srcImageBmp = &src[4];
+    return src;
 }
+
+BYTE *EMSCRIPTEN_KEEPALIVE compress(quality)
+{
+    BYTE *compressed = writeJpeg(srcImageBmp, srcImageWidth, srcImageHeight, quality);
+    int compressedSize = ((int *)compressed)[0];
+    BYTE* ret = readJpeg(&compressed[4], compressedSize);
+    free(compressed);
+    return ret;
+}
+
+// BYTE *EMSCRIPTEN_KEEPALIVE doData(BYTE *jpegData, int size, int quality)
+// {
+//     BYTE *src = readJpeg(jpegData, size);
+//     short width = ((short *)src)[0];
+//     short height = ((short *)src)[1];
+
+//     BYTE *bmp = &src[2 * 2];
+//     BYTE *compressed = writeJpeg(bmp, width, height, quality);
+//     int compressedSize = ((int *)compressed)[0];
+
+//     return readJpeg(&compressed[4], compressedSize);
+// }
