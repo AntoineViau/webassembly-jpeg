@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en-us">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head>
+
+<body>
+    <img id="photo" />
+
+    <div id="slidecontainer">
+        <input type="range" min="1" max="100" value="10" class="slider" id="quality">
+    </div>
+
+    <script async type="text/javascript" src="example.js"></script>
+    <script>
+
+        let slider = document.getElementById("quality");
+        slider.oninput = function () {
+            let quality = this.value;
+            console.log(quality)
+        };
+
+        var Module = {
+            onRuntimeInitialized: () => {
+
+                let doData = Module.cwrap(
+                    'doData',
+                    'number', // ret value
+                    [
+                        'number', // jpegData pointer
+                        'number', // jpegData size
+                        'number' // quality
+                    ]);
+
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/testimg.jpg", true);
+                xhr.responseType = "arraybuffer";
+                xhr.onload = function (e) {
+                    var srcTa = new Uint8Array(this.response);
+                    var srcBlob = new Blob([srcTa], { type: "image/jpeg" });
+                    let srcBuf = Module._malloc(srcTa.length * srcTa.BYTES_PER_ELEMENT);
+                    Module.HEAPU8.set(srcTa, srcBuf);
+                    dstBuf = doData(srcBuf, srcTa.length, 20);
+                    Module._free(srcBuf);
+                    let width = getValue(dstBuf, 'i16');
+                    let height = getValue(dstBuf + 2, 'i16');
+                    let bmp = dstBuf + 4;
+
+                    let buffer = new Uint8Array(width * height * 4);
+                    const type = 'i8';
+                    for (let y = 0; y < height; y++) {
+                        for (let x = 0; x < width; x++) {
+                            let dstPos = (y * width + x) * 4;
+                            let srcPos = (y * width + x) * 3;
+                            buffer[dstPos + 0] = getValue(bmp + srcPos + 0, type);
+                            buffer[dstPos + 1] = getValue(bmp + srcPos + 1, type);
+                            buffer[dstPos + 2] = getValue(bmp + srcPos + 2, type);
+                            buffer[dstPos + 3] = 255;
+                        }
+                    }
+                    Module._free(dstBuf);
+                    blob = new Blob([buffer], { type: 'application/octet-binary' });
+                    var url = URL.createObjectURL(blob);
+                    let canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    document.body.appendChild(canvas);
+                    let ctx = canvas.getContext('2d');
+                    var idata = ctx.createImageData(width, height);
+                    idata.data.set(buffer);
+                    ctx.putImageData(idata, 0, 0);
+                };
+                xhr.send();
+            }
+        };
+    </script>
+</body>
+
+</html>

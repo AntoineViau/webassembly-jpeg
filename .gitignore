@@ -1,0 +1,5 @@
+*.o
+*.lo
+node_modules/
+.libs
+.deps
