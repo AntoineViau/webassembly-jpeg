@@ -5,9 +5,10 @@
 #include <setjmp.h>
 #include <emscripten/emscripten.h>
 
-extern JSAMPLE *image_buffer; /* Points to large array of R,G,B-order data */
-
-typedef unsigned char BYTE; // 8-bit byte
+typedef unsigned char BYTE;  // 1 byte
+typedef unsigned int UINT;   // 4 bytes int ?
+typedef unsigned long ULONG; // 4 bytes int ?
+typedef unsigned short USHORT; // 2 bytes
 
 struct my_error_mgr
 {
@@ -26,7 +27,7 @@ my_error_exit(j_common_ptr cinfo)
 }
 
 GLOBAL(BYTE *)
-readJpeg(BYTE *data, unsigned long dataSize)
+readJpeg(BYTE *data, ULONG dataSize)
 {
     struct jpeg_decompress_struct cinfo;
     struct my_error_mgr jerr;
@@ -44,12 +45,12 @@ readJpeg(BYTE *data, unsigned long dataSize)
     jpeg_mem_src(&cinfo, (BYTE *)data, dataSize);
     (void)jpeg_read_header(&cinfo, TRUE);
     (void)jpeg_start_decompress(&cinfo);
-    int width = cinfo.output_width;
-    int height = cinfo.output_height;
+    USHORT width = cinfo.output_width;
+    USHORT height = cinfo.output_height;
     int pixelSize = cinfo.output_components;
     BYTE *dst = (BYTE *)malloc(width * height * pixelSize + 2 * 2);
-    ((short *)dst)[0] = width;
-    ((short *)dst)[1] = height;
+    ((USHORT *)dst)[0] = width;
+    ((USHORT *)dst)[1] = height;
     BYTE *bmp = &dst[2 * 2];
     row_stride = cinfo.output_width * cinfo.output_components;
     while (cinfo.output_scanline < cinfo.output_height)
@@ -65,38 +66,8 @@ readJpeg(BYTE *data, unsigned long dataSize)
 
 // ---------------------------------------------------------------------------
 
-//std::vector<JOCTET> my_buffer;
-// BYTE* my_buffer;
-// #define BLOCK_SIZE 16384
-
-// void my_init_destination(j_compress_ptr cinfo)
-// {
-//     //my_buffer.resize(BLOCK_SIZE);
-//     my_buffer = (BYTE*)malloc(BLOCK_SIZE);
-//     cinfo->dest->next_output_byte = &my_buffer[0];
-//     cinfo->dest->free_in_buffer = my_buffer.size();
-// }
-
-// boolean my_empty_output_buffer(j_compress_ptr cinfo)
-// {
-//     size_t oldsize = my_buffer.size();
-//     my_buffer.resize(oldsize + BLOCK_SIZE);
-//     cinfo->dest->next_output_byte = &my_buffer[oldsize];
-//     cinfo->dest->free_in_buffer = my_buffer.size() - oldsize;
-//     return true;
-// }
-
-// void my_term_destination(j_compress_ptr cinfo)
-// {
-//     my_buffer.resize(my_buffer.size() - cinfo->dest->free_in_buffer);
-// }
-
-// cinfo.dest->init_destination = &my_init_destination;
-// cinfo.dest->empty_output_buffer = &my_empty_output_buffer;
-// cinfo.dest->term_destination = &my_term_destination;
-
 GLOBAL(BYTE *)
-writeJpeg(BYTE *bmp, int width, int height, int quality)
+writeJpeg(BYTE *bmp, UINT width, int height, int quality)
 {
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
@@ -110,10 +81,9 @@ writeJpeg(BYTE *bmp, int width, int height, int quality)
     cinfo.in_color_space = JCS_RGB;
     jpeg_set_defaults(&cinfo);
     jpeg_set_quality(&cinfo, quality, TRUE);
-    unsigned long bufferSize = width * height * 3;
-    BYTE *buffer = (BYTE *)malloc(bufferSize);
+    ULONG bufferSize;
+    BYTE *buffer;
     jpeg_mem_dest(&cinfo, &buffer, &bufferSize);
-
     jpeg_start_compress(&cinfo, TRUE);
     row_stride = width * 3;
     while (cinfo.next_scanline < cinfo.image_height)
@@ -124,10 +94,8 @@ writeJpeg(BYTE *bmp, int width, int height, int quality)
     jpeg_finish_compress(&cinfo);
     jpeg_destroy_compress(&cinfo);
 
-    // printf("%08X, %d", buffer, bufferSize);
-
     BYTE *dst = (BYTE *)calloc(width * height * 3 + 1 * 4, 1);
-    ((int *)dst)[0] = bufferSize;
+    ((ULONG *)dst)[0] = bufferSize;
     memcpy(&dst[4], buffer, bufferSize);
     free(buffer);
     return dst;
@@ -135,59 +103,25 @@ writeJpeg(BYTE *bmp, int width, int height, int quality)
 
 // ---------------------------------------------------------------------------
 
-char out[32 * 1024];
-void dec2hex(BYTE dec, char *hex)
-{
-    BYTE high, low;
-    high = dec / 16;
-    hex[0] = high + (high < 10 ? '0' : 'a' - 10);
-    low = dec % 16;
-    hex[1] = low + (low < 10 ? '0' : 'a' - 10);
-}
-BYTE *EMSCRIPTEN_KEEPALIVE hexString(BYTE *str, int size)
-{
-    memset(out, 0, sizeof(out));
-    int i, j;
-    for (i = 0, j = 0; i < size; i++, j += 2)
-    {
-        dec2hex((BYTE)str[i], &out[j]);
-    }
-    return (BYTE *)out;
-}
-
-// ---------------------------------------------------------------------------
-
 BYTE *srcImageBmp;
-int srcImageWidth;
-int srcImageHeight;
+USHORT srcImageWidth;
+USHORT srcImageHeight;
 
-BYTE *EMSCRIPTEN_KEEPALIVE setSrcImage(BYTE *jpegData, int size)
+BYTE *EMSCRIPTEN_KEEPALIVE setSrcImage(BYTE *jpegData, ULONG size)
 {
     BYTE *src = readJpeg(jpegData, size);
-    srcImageWidth = ((short *)src)[0];
-    srcImageHeight = ((short *)src)[1];
+    srcImageWidth = ((USHORT *)src)[0];
+    srcImageHeight = ((USHORT *)src)[1];
     srcImageBmp = &src[4];
     return src;
 }
 
-BYTE *EMSCRIPTEN_KEEPALIVE compress(quality)
+BYTE *EMSCRIPTEN_KEEPALIVE compress(USHORT quality)
 {
     BYTE *compressed = writeJpeg(srcImageBmp, srcImageWidth, srcImageHeight, quality);
-    int compressedSize = ((int *)compressed)[0];
-    BYTE* ret = readJpeg(&compressed[4], compressedSize);
+    ULONG compressedSize = ((ULONG *)compressed)[0];
+    BYTE *ret = readJpeg(&compressed[4], compressedSize);
     free(compressed);
     return ret;
 }
 
-// BYTE *EMSCRIPTEN_KEEPALIVE doData(BYTE *jpegData, int size, int quality)
-// {
-//     BYTE *src = readJpeg(jpegData, size);
-//     short width = ((short *)src)[0];
-//     short height = ((short *)src)[1];
-
-//     BYTE *bmp = &src[2 * 2];
-//     BYTE *compressed = writeJpeg(bmp, width, height, quality);
-//     int compressedSize = ((int *)compressed)[0];
-
-//     return readJpeg(&compressed[4], compressedSize);
-// }
