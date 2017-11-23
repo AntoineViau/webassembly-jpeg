@@ -4,6 +4,11 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <style>
+        .slider {
+            width: 50%;
+        }
+    </style>
 </head>
 
 <body>
@@ -12,11 +17,10 @@
     <div id="slidecontainer">
         <input type="range" min="1" max="100" value="10" class="slider" id="quality">
     </div>
+    <div id="size"></div>
 
     <script async type="text/javascript" src="example.js"></script>
     <script>
-
-        
 
         var Module = {
             onRuntimeInitialized: () => {
@@ -90,6 +94,9 @@
                 slider.oninput = function () {
                     let quality = this.value;
                     let imgBuf = compress(quality);
+                    let size = getValue(imgBuf, 'i32');
+                    console.log(size);
+                    //document.getElementById('size').innerHTML = Math.ceil(size/1024);
                     display(imgBuf);
                     Module._free(imgBuf);
                 };
