@@ -5,10 +5,15 @@
 #include <setjmp.h>
 #include <emscripten/emscripten.h>
 
-typedef unsigned char BYTE;  // 1 byte
-typedef unsigned int UINT;   // 4 bytes int ?
-typedef unsigned long ULONG; // 4 bytes int ?
+typedef unsigned char BYTE;    // 1 byte
+typedef unsigned int UINT;     // 4 bytes int ?
+typedef unsigned long ULONG;   // 4 bytes int ?
 typedef unsigned short USHORT; // 2 bytes
+
+#define BMP_OFFSET 1024
+#define WIDTH_OFFSET 0
+#define HEIGHT_OFFSET 2
+#define COMPRESSED_SIZE_OFFSET 4
 
 struct my_error_mgr
 {
@@ -27,7 +32,7 @@ my_error_exit(j_common_ptr cinfo)
 }
 
 GLOBAL(BYTE *)
-readJpeg(BYTE *data, ULONG dataSize)
+readJpeg(BYTE *jpegData, ULONG dataSize)
 {
     struct jpeg_decompress_struct cinfo;
     struct my_error_mgr jerr;
@@ -42,16 +47,19 @@ readJpeg(BYTE *data, ULONG dataSize)
         return 0;
     }
     jpeg_create_decompress(&cinfo);
-    jpeg_mem_src(&cinfo, (BYTE *)data, dataSize);
+    jpeg_mem_src(&cinfo, (BYTE *)jpegData, dataSize);
     (void)jpeg_read_header(&cinfo, TRUE);
     (void)jpeg_start_decompress(&cinfo);
     USHORT width = cinfo.output_width;
     USHORT height = cinfo.output_height;
     int pixelSize = cinfo.output_components;
-    BYTE *dst = (BYTE *)malloc(width * height * pixelSize + 2 * 2);
-    ((USHORT *)dst)[0] = width;
-    ((USHORT *)dst)[1] = height;
-    BYTE *bmp = &dst[2 * 2];
+    BYTE *dst = (BYTE *)malloc(BMP_OFFSET + width * height * pixelSize);
+    *((USHORT*)(&dst[WIDTH_OFFSET])) = width;
+    *((USHORT*)(&dst[HEIGHT_OFFSET])) = height;
+    *((ULONG*)(&dst[COMPRESSED_SIZE_OFFSET])) = dataSize;
+    // ((USHORT *)dst)[0] = width;
+    // ((USHORT *)dst)[1] = height;
+    BYTE *bmp = &dst[BMP_OFFSET];
     row_stride = cinfo.output_width * cinfo.output_components;
     while (cinfo.output_scanline < cinfo.output_height)
     {
@@ -66,8 +74,21 @@ readJpeg(BYTE *data, ULONG dataSize)
 
 // ---------------------------------------------------------------------------
 
+typedef struct
+{
+    struct jpeg_destination_mgr pub; /* public fields */
+
+    unsigned char **outbuffer; /* target buffer */
+    unsigned long *outsize;
+    unsigned char *newbuffer; /* newly allocated buffer */
+    JOCTET *buffer;           /* start of buffer */
+    size_t bufsize;
+} my_mem_destination_mgr;
+
+typedef my_mem_destination_mgr *my_mem_dest_ptr;
+
 GLOBAL(BYTE *)
-writeJpeg(BYTE *bmp, UINT width, int height, int quality)
+writeJpeg(BYTE *bmp, USHORT width, USHORT height, USHORT quality)
 {
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
@@ -81,8 +102,8 @@ writeJpeg(BYTE *bmp, UINT width, int height, int quality)
     cinfo.in_color_space = JCS_RGB;
     jpeg_set_defaults(&cinfo);
     jpeg_set_quality(&cinfo, quality, TRUE);
-    ULONG bufferSize;
-    BYTE *buffer;
+    ULONG bufferSize = 0;
+    BYTE *buffer = NULL;
     jpeg_mem_dest(&cinfo, &buffer, &bufferSize);
     jpeg_start_compress(&cinfo, TRUE);
     row_stride = width * 3;
@@ -94,9 +115,9 @@ writeJpeg(BYTE *bmp, UINT width, int height, int quality)
     jpeg_finish_compress(&cinfo);
     jpeg_destroy_compress(&cinfo);
 
-    BYTE *dst = (BYTE *)calloc(width * height * 3 + 1 * 4, 1);
-    ((ULONG *)dst)[0] = bufferSize;
-    memcpy(&dst[4], buffer, bufferSize);
+    BYTE *dst = (BYTE *)calloc(BMP_OFFSET + bufferSize, 1);
+    *((ULONG *)(&dst[COMPRESSED_SIZE_OFFSET])) = bufferSize;
+    memcpy(&dst[BMP_OFFSET], buffer, bufferSize);
     free(buffer);
     return dst;
 }
@@ -112,16 +133,15 @@ BYTE *EMSCRIPTEN_KEEPALIVE setSrcImage(BYTE *jpegData, ULONG size)
     BYTE *src = readJpeg(jpegData, size);
     srcImageWidth = ((USHORT *)src)[0];
     srcImageHeight = ((USHORT *)src)[1];
-    srcImageBmp = &src[4];
+    srcImageBmp = &src[BMP_OFFSET];
     return src;
 }
 
 BYTE *EMSCRIPTEN_KEEPALIVE compress(USHORT quality)
 {
     BYTE *compressed = writeJpeg(srcImageBmp, srcImageWidth, srcImageHeight, quality);
-    ULONG compressedSize = ((ULONG *)compressed)[0];
-    BYTE *ret = readJpeg(&compressed[4], compressedSize);
+    ULONG compressedSize = ((ULONG *)compressed)[1];
+    BYTE *ret = readJpeg(&compressed[BMP_OFFSET], compressedSize);
     free(compressed);
     return ret;
 }
-

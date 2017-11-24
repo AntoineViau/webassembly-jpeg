@@ -15,7 +15,7 @@
     <img id="photo" />
 
     <div id="slidecontainer">
-        <input type="range" min="1" max="100" value="10" class="slider" id="quality">
+        <input type="range" min="1" max="100" value="100" class="slider" id="quality">
     </div>
     <div id="size"></div>
 
@@ -54,7 +54,7 @@
                         Module.HEAPU8.set(srcTa, srcBuf);
                         let srcImgBuf = setSrcImage(srcBuf, srcTa.length);
                         Module._free(srcBuf);
-                        delete srcBlob; 
+                        delete srcBlob;
                         delete srcTa;
                         width = getValue(srcImgBuf, 'i16');
                         height = getValue(srcImgBuf + 2, 'i16');
@@ -64,13 +64,14 @@
                         canvas.height = height;
                         document.body.appendChild(canvas);
                         ctx = canvas.getContext('2d');
-                        display(srcImgBuf);
+                        //display(srcImgBuf);
+                        update(100);
                     }
                     xhr.send();
                 }
 
                 function display(raw) {
-                    let bmp = raw + 4;
+                    let bmp = raw + 1024;
                     let buffer = new Uint8Array(width * height * 4);
                     const type = 'i8';
                     for (let y = 0; y < height; y++) {
@@ -82,26 +83,28 @@
                             buffer[dstPos + 2] = getValue(bmp + srcPos + 2, type);
                             buffer[dstPos + 3] = 255;
                         }
-                    }                    
+                    }
                     blob = new Blob([buffer], { type: 'application/octet-binary' });
                     let url = URL.createObjectURL(blob);
                     let idata = ctx.createImageData(width, height);
                     idata.data.set(buffer);
                     ctx.putImageData(idata, 0, 0);
                 }
-                
-                let slider = document.getElementById("quality");
-                slider.oninput = function () {
-                    let quality = this.value;
+
+                function update(quality) {
                     let imgBuf = compress(quality);
-                    let size = getValue(imgBuf, 'i32');
-                    console.log(size);
-                    //document.getElementById('size').innerHTML = Math.ceil(size/1024);
+                    let size = getValue(imgBuf + 4, 'i32');
+                    document.getElementById('size').innerHTML = 'Quality:' + quality + ' / Weight: ' + (size / 1024).toFixed(2) + ' Kb';
                     display(imgBuf);
                     Module._free(imgBuf);
+                }
+
+                let slider = document.getElementById("quality");
+                slider.oninput = function () {
+                    update(this.value);
                 };
 
-                loadSrcImage("/bouyous.jpg");
+                loadSrcImage("/testimg.jpg");
             }
         };
     </script>
