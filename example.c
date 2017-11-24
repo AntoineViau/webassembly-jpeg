@@ -10,10 +10,11 @@ typedef unsigned int UINT;     // 4 bytes int ?
 typedef unsigned long ULONG;   // 4 bytes int ?
 typedef unsigned short USHORT; // 2 bytes
 
-#define BMP_OFFSET 1024
+
 #define WIDTH_OFFSET 0
 #define HEIGHT_OFFSET 2
 #define COMPRESSED_SIZE_OFFSET 4
+#define BMP_OFFSET 8
 
 struct my_error_mgr
 {
@@ -57,8 +58,6 @@ readJpeg(BYTE *jpegData, ULONG dataSize)
     *((USHORT*)(&dst[WIDTH_OFFSET])) = width;
     *((USHORT*)(&dst[HEIGHT_OFFSET])) = height;
     *((ULONG*)(&dst[COMPRESSED_SIZE_OFFSET])) = dataSize;
-    // ((USHORT *)dst)[0] = width;
-    // ((USHORT *)dst)[1] = height;
     BYTE *bmp = &dst[BMP_OFFSET];
     row_stride = cinfo.output_width * cinfo.output_components;
     while (cinfo.output_scanline < cinfo.output_height)

@@ -5,6 +5,15 @@
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <style>
+        body {
+            font-family: Arial;
+            font-weight: bold;
+            text-align: center;
+        }
+        #image-container {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
         .slider {
             width: 50%;
         }
@@ -12,10 +21,11 @@
 </head>
 
 <body>
-    <img id="photo" />
 
     <div id="slidecontainer">
         <input type="range" min="1" max="100" value="100" class="slider" id="quality">
+    </div>
+    <div id="image-container">
     </div>
     <div id="size"></div>
 
@@ -24,6 +34,8 @@
 
         var Module = {
             onRuntimeInitialized: () => {
+
+                const BMP_OFFSET = 8;
 
                 let setSrcImage = Module.cwrap(
                     'setSrcImage',
@@ -62,16 +74,15 @@
                         canvas = document.createElement('canvas');
                         canvas.width = width;
                         canvas.height = height;
-                        document.body.appendChild(canvas);
+                        document.getElementById('image-container').appendChild(canvas);
                         ctx = canvas.getContext('2d');
-                        //display(srcImgBuf);
                         update(100);
                     }
                     xhr.send();
                 }
 
                 function display(raw) {
-                    let bmp = raw + 1024;
+                    let bmp = raw + BMP_OFFSET;
                     let buffer = new Uint8Array(width * height * 4);
                     const type = 'i8';
                     for (let y = 0; y < height; y++) {
