@@ -1,12 +1,14 @@
 {
-  "name": "003",
+  "name": "webassembly-jpeg",
   "version": "1.0.0",
-  "description": "The Independent JPEG Group's JPEG software ==========================================",
-  "main": "a.out.js",
+  "description": "Some experiments with Web Assembly and Jpeg: read and write Jpeg in real time.",
+  "main": "",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "keywords": ["web assembly", "jpeg"],
+  "author": "Antoine Viau",
+  "license": "ISC",
+  "dependencies": {
+    "node-static": "^0.7.10"
+  }
 }
