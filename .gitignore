@@ -1,8 +1,2 @@
-*.o
-*.lo
-node_modules/
-.libs
-.deps
-*.out*
-*.log
-
+example.js
+/libjpeg
