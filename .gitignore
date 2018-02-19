@@ -1,2 +1,4 @@
 example.js
+example.wasm
+node_modules
 /libjpeg
