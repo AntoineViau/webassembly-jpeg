@@ -61,12 +61,12 @@
                     xhr.responseType = "arraybuffer";
                     xhr.onload = function (e) {
                         let srcTa = new Uint8Array(this.response);
-                        let srcBlob = new Blob([srcTa], { type: "image/jpeg" });
+                        //let srcBlob = new Blob([srcTa], { type: "image/jpeg" });
                         let srcBuf = Module._malloc(srcTa.length * srcTa.BYTES_PER_ELEMENT);
                         Module.HEAPU8.set(srcTa, srcBuf);
                         let srcImgBuf = setSrcImage(srcBuf, srcTa.length);
                         Module._free(srcBuf);
-                        delete srcBlob;
+                        //delete srcBlob;
                         delete srcTa;
                         width = getValue(srcImgBuf, 'i16');
                         height = getValue(srcImgBuf + 2, 'i16');
