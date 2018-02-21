@@ -10,10 +10,12 @@
             font-weight: bold;
             text-align: center;
         }
+
         #image-container {
             margin-top: 20px;
             margin-bottom: 20px;
         }
+
         .slider {
             width: 50%;
         }
@@ -37,21 +39,8 @@
 
                 const BMP_OFFSET = 8;
 
-                let setSrcImage = Module.cwrap(
-                    'setSrcImage',
-                    'number', // ret value : uncompressed image
-                    [
-                        'number', // jpegData pointer
-                        'number', // jpegData size
-                    ]);
-
-                let compress = Module.cwrap(
-                    'compress',
-                    'number', // ret value : uncompressed image
-                    [
-                        'number' // quality
-                    ]);
-
+                let setSrcImage = Module._setSrcImage;
+                let compress = Module._compress;
                 let width, height;
                 let canvas, ctx;
 
@@ -61,15 +50,14 @@
                     xhr.responseType = "arraybuffer";
                     xhr.onload = function (e) {
                         let srcTa = new Uint8Array(this.response);
-                        //let srcBlob = new Blob([srcTa], { type: "image/jpeg" });
                         let srcBuf = Module._malloc(srcTa.length * srcTa.BYTES_PER_ELEMENT);
                         Module.HEAPU8.set(srcTa, srcBuf);
                         let srcImgBuf = setSrcImage(srcBuf, srcTa.length);
                         Module._free(srcBuf);
-                        //delete srcBlob;
                         delete srcTa;
-                        width = getValue(srcImgBuf, 'i16');
-                        height = getValue(srcImgBuf + 2, 'i16');
+
+                        width = Module.HEAP16[srcImgBuf >> 1];
+                        height = Module.HEAP16[(srcImgBuf + 2) >> 1];
 
                         canvas = document.createElement('canvas');
                         canvas.width = width;
@@ -89,9 +77,9 @@
                         for (let x = 0; x < width; x++) {
                             let dstPos = (y * width + x) * 4;
                             let srcPos = (y * width + x) * 3;
-                            buffer[dstPos + 0] = getValue(bmp + srcPos + 0, type);
-                            buffer[dstPos + 1] = getValue(bmp + srcPos + 1, type);
-                            buffer[dstPos + 2] = getValue(bmp + srcPos + 2, type);
+                            buffer[dstPos + 0] = Module.HEAP8[bmp + srcPos + 0];
+                            buffer[dstPos + 1] = Module.HEAP8[bmp + srcPos + 1];
+                            buffer[dstPos + 2] = Module.HEAP8[bmp + srcPos + 2];
                             buffer[dstPos + 3] = 255;
                         }
                     }
@@ -104,7 +92,7 @@
 
                 function update(quality) {
                     let imgBuf = compress(quality);
-                    let size = getValue(imgBuf + 4, 'i32');
+                    let size = Module.HEAP32[(imgBuf + 4) >> 2];
                     document.getElementById('size').innerHTML = 'Quality:' + quality + ' / Weight: ' + (size / 1024).toFixed(2) + ' Kb';
                     display(imgBuf);
                     Module._free(imgBuf);
@@ -116,6 +104,7 @@
                 };
 
                 loadSrcImage("/libjpeg/testimg.jpg");
+
             }
         };
     </script>
