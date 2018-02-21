@@ -4,8 +4,12 @@
   "description": "Some experiments with Web Assembly and Jpeg: read and write Jpeg in real time.",
   "main": "",
   "scripts": {
+    "start": "static"
   },
-  "keywords": ["web assembly", "jpeg"],
+  "keywords": [
+    "web assembly",
+    "jpeg"
+  ],
   "author": "Antoine Viau",
   "license": "ISC",
   "dependencies": {
