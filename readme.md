@@ -1,9 +1,10 @@
 # Experiments : read and write Jpeg with Web Assembly in real time
 
+To have a look right now : http://antoineviau.com/webassembly-jpeg/index.html
+
 ## Install, build and run
 
 Install Emscripten from https://kripken.github.io/emscripten-site/index.html  
-Don't forget to launch the environment script (`source emsdk_set_env.sh` on Linux for example)
 
 Install dependencies : 
 
@@ -34,11 +35,11 @@ We have now a WASM Jpeg library ready to be included into our project.
 Let's build our app :
 
     cd ..
-    emcc -o example.js example.c libjpeg/.libs/libjpeg.a -O3 -s WASM=1 -s NO_EXIT_RUNTIME=1
+    emcc -o webassembly-jpeg.js webassembly-jpeg.c libjpeg/.libs/libjpeg.a -O3 -s WASM=1 -s NO_EXIT_RUNTIME=1
 
 Launch a local server : 
 
     npm start
 
-And play with the app on `localhost:8080/example.html`
+And play with the app on `localhost:8080/index.html`
 
