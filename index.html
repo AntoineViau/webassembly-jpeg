@@ -67,10 +67,17 @@
                     // We allocated a memory block inside our WebAssembly module
                     let srcBuf = Module._malloc(rawJpegAsTypedArray.length * rawJpegAsTypedArray.BYTES_PER_ELEMENT);
                     // We copy the typed array to the memory block
+                    // Important : this memory block is a part of the heap. 
+                    // The heap is allocated by JS code in the Emscripten glue and 
+                    // given as the memory to the WebAssembly instance.
+                    // So, when we do malloc we simply get an index into the heap where 
+                    // we can read/write. This is done by writeArrayToMemory which will
+                    // simply call HEAP8.set(array, buffer), which means : 
+                    // "copy array to HEAP8 at offset buffer"
                     Module.writeArrayToMemory(rawJpegAsTypedArray, srcBuf);
-                    // We give setSrcImage the pointer to the raw Jpeg data in C memory block
+                    // We give setSrcImage the pointer to the raw Jpeg data in the heap.
                     // This function will return information about the bitmap :
-                    // { width: short, height: short, compressedSize: int, bmpData: char* }
+                    // { ULONG width; ULONG height; ULONG compressedSize; BYTE* bmpData; }
                     let srcBmpBuf = setSrcImage(srcBuf, rawJpegAsTypedArray.length);
                     // We get width and height from these informations
                     bitmap.width = Module.getValue(srcBmpBuf + WIDTH_OFFSET, 'i32');
@@ -98,8 +105,11 @@
                 function display(bmpPtr) {
                     let bmpDataPtr = bmpPtr + BMP_OFFSET;
 
-                    // Bitmap data are RGBA, canvas data are RGBA.
+                    // Unfortunatly, bitmap pixels are RGB and canvas expects RGBA.
+                    // So we have to write pixel by pixel, and it is slow !
                     // The canvas Alpha is set in createDisplayZone()
+                    // If we wanted performance, we should make de Web Assembly code
+                    // allocated RGBA pixel and do the pixel conversion.
                     let len = bitmap.width * bitmap.height * 4;
                     for (let ptr = bmpDataPtr, iDst = 0; iDst < len; ptr += 3, iDst += 4) {
                         displayZone.bmpArray[iDst + 0] = Module.getValue(ptr + 0, 'i8');
@@ -126,7 +136,6 @@
                     //     buf32[iDst] = (a << 24) | (b << 16) | (g << 8) | r;
                     // }
                     // displayZone.bmpArray = new Uint8ClampedArray(buf32.buffer);
-
 
                     // We need these two calls to trigger the canvas update
                     displayZone.imageData.data.set(displayZone.bmpArray);
