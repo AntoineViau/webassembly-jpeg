@@ -34,9 +34,13 @@
   <script async type="text/javascript" src="webassembly-jpeg.js"></script>
   <script>
 
+    // Module is our Web Assembly instance
     var Module = {
+      // When the instance has been loaded and compiled...
       onRuntimeInitialized: () => {
 
+        // When our C code will give us the bitmap, it will be prefixed
+        // with some meta data
         const WIDTH_OFFSET = 0;
         const HEIGHT_OFFSET = 4;
         const COMPRESSED_SIZE_OFFSET = 8;
@@ -46,11 +50,19 @@
         let setSrcImage = Module.cwrap('setSrcImage', 'number', ['number', 'number']);
         // JS wrap of : BYTE* compress(ULONG quality)
         let compress = Module.cwrap('compress', 'number', ['number']);
-        let displayZone = {};
+        // Canvas
+        let displayZone = {
+          ctx: undefined,       // canvas context
+          bmpArray: undefined,  // bitmap 
+          imageData: undefined  // internal canvas bitmap
+        };
         let bitmap = {
           width: undefined,
           height: undefined,
         }
+
+        // Start point...
+        loadSrcImage("libjpeg/testimg.jpg");
 
         function loadSrcImage(imgUrl) {
           fetch(imgUrl)
@@ -141,6 +153,7 @@
           displayZone.ctx.putImageData(displayZone.imageData, 0, 0);
         }
 
+        // On slider move...
         function update(quality) {
           // Call the WebAssembly function compress()
           // It will compress the bitmap image to Jpeg with given quality value.
@@ -159,9 +172,6 @@
         slider.oninput = function () {
           update(this.value);
         };
-
-        loadSrcImage("libjpeg/testimg.jpg");
-
       }
     };
   </script>
