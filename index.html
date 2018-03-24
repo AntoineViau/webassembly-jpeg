@@ -78,6 +78,10 @@
                     delete rawJpegAsTypedArray;
                 }
 
+                // Will display the image in a canvas.
+                // Image data are provided through a typed array.
+                // The doc says Uint8ClampedArray but it does not work (colors are melted).
+                // So we create a Uint8Array a assign it to the canvas context.
                 function createDisplayZone() {
                     let canvas = document.createElement('canvas');
                     canvas.width = bitmap.width;
@@ -91,20 +95,29 @@
                 function display(bmpPtr) {
                     let bmpDataPtr = bmpPtr + BMP_OFFSET;
                     let len = bitmap.width * bitmap.height * 4;
+                    // Bitmap data are RGBA, canvas data are RGBA.
+                    // The canvas Alpha is set in createDisplayZone()
                     for (let ptr = bmpDataPtr, iDst = 0; iDst < len; ptr += 3, iDst += 4) {
                         displayZone.bmpArray[iDst + 0] = Module.getValue(ptr + 0, 'i8');
                         displayZone.bmpArray[iDst + 1] = Module.getValue(ptr + 1, 'i8');
                         displayZone.bmpArray[iDst + 2] = Module.getValue(ptr + 2, 'i8');
                     }
+                    // We need these two calls to trigger the canvas update
                     displayZone.imageData.data.set(displayZone.bmpArray);
                     displayZone.ctx.putImageData(displayZone.imageData, 0, 0);
                 }
 
                 function update(quality) {
+                    // Call the WebAssembly function compress()
+                    // It will compress the bitmap image to Jpeg with given quality value.
+                    // Then it will decompress back and return the bitmap structure (width, height, uncompressedSize, bmpDataPtr)
                     let bmpPtr = compress(quality);
                     let size = Module.getValue(bmpPtr + 4, 'i32');
                     document.getElementById('size').innerHTML = 'Quality:' + quality + ' / Weight: ' + (size / 1024).toFixed(2) + ' Kb';
+                    // Show it to the world
                     display(bmpPtr);
+                    // The display function has copied the bitmap data to the canvas through
+                    // an Uint8Array. Si, we do not need the bitmap structure anymore.
                     Module._free(bmpPtr);
                 }
 
