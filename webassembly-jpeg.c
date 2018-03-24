@@ -10,11 +10,10 @@ typedef unsigned int UINT;     // 4 bytes int ?
 typedef unsigned long ULONG;   // 4 bytes int ?
 typedef unsigned short USHORT; // 2 bytes
 
-
 #define WIDTH_OFFSET 0
-#define HEIGHT_OFFSET 2
-#define COMPRESSED_SIZE_OFFSET 4
-#define BMP_OFFSET 8
+#define HEIGHT_OFFSET 4
+#define COMPRESSED_SIZE_OFFSET 8
+#define BMP_OFFSET 12
 
 struct my_error_mgr
 {
@@ -51,13 +50,14 @@ readJpeg(BYTE *jpegData, ULONG dataSize)
     jpeg_mem_src(&cinfo, (BYTE *)jpegData, dataSize);
     (void)jpeg_read_header(&cinfo, TRUE);
     (void)jpeg_start_decompress(&cinfo);
-    USHORT width = cinfo.output_width;
-    USHORT height = cinfo.output_height;
+    ULONG width = cinfo.output_width;
+    ULONG height = cinfo.output_height;
     int pixelSize = cinfo.output_components;
     BYTE *dst = (BYTE *)malloc(BMP_OFFSET + width * height * pixelSize);
-    *((USHORT*)(&dst[WIDTH_OFFSET])) = width;
-    *((USHORT*)(&dst[HEIGHT_OFFSET])) = height;
-    *((ULONG*)(&dst[COMPRESSED_SIZE_OFFSET])) = dataSize;
+    ULONG *infos = (ULONG *)dst;
+    infos[0] = width;
+    infos[1] = height;
+    infos[2] = dataSize;
     BYTE *bmp = &dst[BMP_OFFSET];
     row_stride = cinfo.output_width * cinfo.output_components;
     while (cinfo.output_scanline < cinfo.output_height)
@@ -87,7 +87,7 @@ typedef struct
 typedef my_mem_destination_mgr *my_mem_dest_ptr;
 
 GLOBAL(BYTE *)
-writeJpeg(BYTE *bmp, USHORT width, USHORT height, USHORT quality)
+writeJpeg(BYTE *bmp, ULONG width, ULONG height, ULONG quality)
 {
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
@@ -115,7 +115,10 @@ writeJpeg(BYTE *bmp, USHORT width, USHORT height, USHORT quality)
     jpeg_destroy_compress(&cinfo);
 
     BYTE *dst = (BYTE *)calloc(BMP_OFFSET + bufferSize, 1);
-    *((ULONG *)(&dst[COMPRESSED_SIZE_OFFSET])) = bufferSize;
+    ULONG *infos = (ULONG *)dst;
+    infos[0] = width;
+    infos[1] = width;
+    infos[2] = bufferSize;
     memcpy(&dst[BMP_OFFSET], buffer, bufferSize);
     free(buffer);
     return dst;
@@ -124,22 +127,24 @@ writeJpeg(BYTE *bmp, USHORT width, USHORT height, USHORT quality)
 // ---------------------------------------------------------------------------
 
 BYTE *srcImageBmp;
-USHORT srcImageWidth;
-USHORT srcImageHeight;
+ULONG srcImageWidth;
+ULONG srcImageHeight;
 
 BYTE *EMSCRIPTEN_KEEPALIVE setSrcImage(BYTE *jpegData, ULONG size)
 {
     BYTE *src = readJpeg(jpegData, size);
-    srcImageWidth = ((USHORT *)src)[0];
-    srcImageHeight = ((USHORT *)src)[1];
+    ULONG *infos = (ULONG *)src;
+    srcImageWidth = infos[0];
+    srcImageHeight = infos[1];
     srcImageBmp = &src[BMP_OFFSET];
     return src;
 }
 
-BYTE *EMSCRIPTEN_KEEPALIVE compress(USHORT quality)
+BYTE *EMSCRIPTEN_KEEPALIVE compress(ULONG quality)
 {
     BYTE *compressed = writeJpeg(srcImageBmp, srcImageWidth, srcImageHeight, quality);
-    ULONG compressedSize = ((ULONG *)compressed)[1];
+    ULONG *infos = (ULONG *)compressed;
+    ULONG compressedSize = infos[2];
     BYTE *ret = readJpeg(&compressed[BMP_OFFSET], compressedSize);
     free(compressed);
     return ret;
