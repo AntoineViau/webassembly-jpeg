@@ -39,63 +39,73 @@
 
                 const BMP_OFFSET = 8;
 
-                let setSrcImage = Module._setSrcImage;
-                let compress = Module._compress;
-                let width, height;
-                let canvas, ctx;
-
-                function loadSrcImage(imgUrl) {
-                    let xhr = new XMLHttpRequest();
-                    xhr.open("GET", imgUrl, true);
-                    xhr.responseType = "arraybuffer";
-                    xhr.onload = function (e) {
-                        let srcTa = new Uint8Array(this.response);
-                        let srcBuf = Module._malloc(srcTa.length * srcTa.BYTES_PER_ELEMENT);
-                        Module.HEAPU8.set(srcTa, srcBuf);
-                        let srcImgBuf = setSrcImage(srcBuf, srcTa.length);
-                        Module._free(srcBuf);
-                        delete srcTa;
-
-                        width = Module.HEAP16[srcImgBuf >> 1];
-                        height = Module.HEAP16[(srcImgBuf + 2) >> 1];
-
-                        canvas = document.createElement('canvas');
-                        canvas.width = width;
-                        canvas.height = height;
-                        document.getElementById('image-container').appendChild(canvas);
-                        ctx = canvas.getContext('2d');
-                        update(1);
-                    }
-                    xhr.send();
+                // JS wrap of : BYTE* setSrcImage(BYTE* jpegData, ULONG size)
+                let setSrcImage = Module.cwrap('setSrcImage', 'number', ['number', 'number']);
+                // JS wrap of : BYTE* compress(USHORT quality)
+                let compress = Module.cwrap('compress', 'number', ['number']);
+                //let width, height;
+                let displayZone = {};
+                let bitmap = {
+                    width: undefined,
+                    height: undefined,
                 }
 
-                function display(raw) {
-                    let bmp = raw + BMP_OFFSET;
-                    let buffer = new Uint8Array(width * height * 4);
-                    const type = 'i8';
-                    for (let y = 0; y < height; y++) {
-                        for (let x = 0; x < width; x++) {
-                            let dstPos = (y * width + x) * 4;
-                            let srcPos = (y * width + x) * 3;
-                            buffer[dstPos + 0] = Module.HEAP8[bmp + srcPos + 0];
-                            buffer[dstPos + 1] = Module.HEAP8[bmp + srcPos + 1];
-                            buffer[dstPos + 2] = Module.HEAP8[bmp + srcPos + 2];
-                            buffer[dstPos + 3] = 255;
-                        }
+                function loadSrcImage(imgUrl) {
+                    fetch(imgUrl)
+                        .then(response => response.arrayBuffer())
+                        .then(initImage)
+                        .then(createDisplayZone)
+                        .then(() => update(1));
+                }
+
+                function initImage(rawJpeg) {
+                    // response is an ArrayBuffer (not typed).
+                    let rawJpegAsTypedArray = new Uint8Array(rawJpeg);
+                    // We allocated a memory block inside our WebAssembly module
+                    let srcBuf = Module._malloc(rawJpegAsTypedArray.length * rawJpegAsTypedArray.BYTES_PER_ELEMENT);
+                    // We copy the typed array to the memory block
+                    Module.writeArrayToMemory(rawJpegAsTypedArray, srcBuf);
+                    // We give setSrcImage the pointer to the raw Jpeg data in C memory block
+                    // This function will return information about the bitmap :
+                    // { width: short, height: short, compressedSize: int, bmpData: char* }
+                    let srcBmpBuf = setSrcImage(srcBuf, rawJpegAsTypedArray.length);
+                    // We get width and height from these informations
+                    bitmap.width = Module.getValue(srcBmpBuf, 'i16');
+                    bitmap.height = Module.getValue(srcBmpBuf + 2, 'i16');
+                    // We known our WebAssembly code will not use anymore the allocated memory block.
+                    Module._free(srcBuf);
+                    // And we will not need the raw data anymore.
+                    delete rawJpegAsTypedArray;
+                }
+
+                function createDisplayZone() {
+                    let canvas = document.createElement('canvas');
+                    canvas.width = bitmap.width;
+                    canvas.height = bitmap.height;
+                    document.getElementById('image-container').appendChild(canvas);
+                    displayZone.ctx = canvas.getContext('2d');
+                    displayZone.bmpArray = new Uint8Array(bitmap.width * bitmap.height * 4).fill(255);
+                    displayZone.imageData = displayZone.ctx.createImageData(bitmap.width, bitmap.height);
+                }
+
+                function display(bmpPtr) {
+                    let bmpDataPtr = bmpPtr + BMP_OFFSET;
+                    let len = bitmap.width * bitmap.height * 4;
+                    for (let ptr = bmpDataPtr, iDst = 0; iDst < len; ptr += 3, iDst += 4) {
+                        displayZone.bmpArray[iDst + 0] = Module.getValue(ptr + 0, 'i8');
+                        displayZone.bmpArray[iDst + 1] = Module.getValue(ptr + 1, 'i8');
+                        displayZone.bmpArray[iDst + 2] = Module.getValue(ptr + 2, 'i8');
                     }
-                    blob = new Blob([buffer], { type: 'application/octet-binary' });
-                    let url = URL.createObjectURL(blob);
-                    let idata = ctx.createImageData(width, height);
-                    idata.data.set(buffer);
-                    ctx.putImageData(idata, 0, 0);
+                    displayZone.imageData.data.set(displayZone.bmpArray);
+                    displayZone.ctx.putImageData(displayZone.imageData, 0, 0);
                 }
 
                 function update(quality) {
-                    let imgBuf = compress(quality);
-                    let size = Module.HEAP32[(imgBuf + 4) >> 2];
+                    let bmpPtr = compress(quality);
+                    let size = Module.getValue(bmpPtr + 4, 'i32');
                     document.getElementById('size').innerHTML = 'Quality:' + quality + ' / Weight: ' + (size / 1024).toFixed(2) + ' Kb';
-                    display(imgBuf);
-                    Module._free(imgBuf);
+                    display(bmpPtr);
+                    Module._free(bmpPtr);
                 }
 
                 let slider = document.getElementById("quality");
