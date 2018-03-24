@@ -4,8 +4,9 @@ To have a look right now : http://antoineviau.com/webassembly-jpeg/index.html
 
 
 ## What does it do ? 
-When index.html is launched in your browser, a Jpeg image is loaded through an XmlHttpRequest and processed as raw data (see `loadSrcImage`). The data are given to the C/WASM code through `setSrcImage` : it will decode the raw data as Jpeg and store the bitmap in memory for further Jpeg encoding/decoding.  
-After this init step, when the user moves the slider, the `update` JS function will call the `compress` C/WASM function. This is the app core : the image is encoded with the given quality value, then decoded and send back to the Javascript. Finally, the image is displayed in a canvas.
+When index.html is launched in your browser, a Jpeg image is fetched() and processed as raw data (see `loadSrcImage`). The data are given to the C/WASM code through `setSrcImage` : it will decode the raw data as Jpeg and store the bitmap in memory for further Jpeg encoding/decoding.  
+After this init step, when the user moves the slider, the `update` JS function will call the `compress` C/WASM function.  
+This is the app core : the image is encoded with the given quality value, then decoded and send back to the Javascript. Finally, the image is displayed in a canvas.
 
 ## Install, build and run
 
@@ -40,7 +41,8 @@ We have now a WASM Jpeg library ready to be included into our project.
 Let's build our app :
 
     cd ..
-    emcc -o webassembly-jpeg.js webassembly-jpeg.c libjpeg/.libs/libjpeg.a -O3 -s WASM=1 -s NO_EXIT_RUNTIME=1
+    emcc -o webassembly-jpeg.js webassembly-jpeg.c libjpeg/.libs/libjpeg.a -O3 -s WASM=1 -s NO_EXIT_RUNTIME=1 -s 'EXTRA_EXPORTED_RUNTIME_METHODS=["writeArrayToMemory","getValue", "cwrap"]' 
+
 
 Launch a local server : 
 
