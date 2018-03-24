@@ -1,4 +1,5 @@
-example.js
-example.wasm
+webassembly-jpeg.js
 node_modules
 /libjpeg
+*.tar.gz
+*.wasm*
