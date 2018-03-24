@@ -6,7 +6,9 @@ To have a look right now : http://antoineviau.com/webassembly-jpeg/index.html
 ## What does it do ? 
 When index.html is launched in your browser, a Jpeg image is fetched() and processed as raw data (see `loadSrcImage`). The data are given to the C/WASM code through `setSrcImage` : it will decode the raw data as Jpeg and store the bitmap in memory for further Jpeg encoding/decoding.  
 After this init step, when the user moves the slider, the `update` JS function will call the `compress` C/WASM function.  
-This is the app core : the image is encoded with the given quality value, then decoded and send back to the Javascript. Finally, the image is displayed in a canvas.
+This is the app core : the image is encoded with the given quality value, then decoded and send back to the Javascript. Finally, the image is displayed in a canvas.  
+
+**Have a look to the code (especially `index.html`), almost every line is commented.**
 
 ## Install, build and run
 
