@@ -107,6 +107,10 @@
                         displayZone.bmpArray[iDst + 2] = Module.getValue(ptr + 2, 'i8');
                     }
 
+                    // Following is an aborted performance optimization.
+                    // Problem comes from memory alignment : read RGB to write RGBA
+                    // implies moving from 3 bytes to 3 bytes, so unaligned.
+                    // if you add -s SAFE_HEAP=1 to your emcc, the getValue will crash.
                     // let buf32 = new Uint32Array(bitmap.width * bitmap.height * 4);
                     // let len = bitmap.width * bitmap.height;
                     // for (let ptr = bmpDataPtr, iDst = 0; iDst < len; ptr += 4, iDst += 1) {
