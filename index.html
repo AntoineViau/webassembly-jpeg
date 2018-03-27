@@ -75,14 +75,14 @@
         function initImage(rawJpeg) {
           // response is an ArrayBuffer (not typed).
           let rawJpegAsTypedArray = new Uint8Array(rawJpeg);
-          // We allocated a memory block inside our WebAssembly module
+          // We allocate a memory block inside our WebAssembly module
           let srcBuf = Module._malloc(rawJpegAsTypedArray.length * rawJpegAsTypedArray.BYTES_PER_ELEMENT);
           // We copy the typed array to the memory block
           // Important : this memory block is a part of the heap. 
           // The heap is allocated by JS code in the Emscripten glue and 
           // given as the memory to the WebAssembly instance.
           // So, when we do malloc we simply get an index into the heap where 
-          // we can read/write. This is done by writeArrayToMemory which will
+          // we can write. This is done by writeArrayToMemory which will
           // simply call HEAP8.set(array, buffer), which means : 
           // "copy array to HEAP8 at offset buffer"
           Module.writeArrayToMemory(rawJpegAsTypedArray, srcBuf);
