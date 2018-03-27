@@ -18,7 +18,7 @@ typedef struct
 
 typedef my_mem_destination_mgr *my_mem_dest_ptr;
 
-GLOBAL(BYTE *)
+GLOBAL(Image *)
 writeJpeg(BYTE *bmp, ULONG width, ULONG height, ULONG quality)
 {
     struct jpeg_compress_struct cinfo;
@@ -46,12 +46,20 @@ writeJpeg(BYTE *bmp, ULONG width, ULONG height, ULONG quality)
     jpeg_finish_compress(&cinfo);
     jpeg_destroy_compress(&cinfo);
 
-    BYTE *dst = (BYTE *)calloc(BMP_OFFSET + bufferSize, 1);
-    ULONG *infos = (ULONG *)dst;
-    infos[0] = width;
-    infos[1] = width;
-    infos[2] = bufferSize;
-    memcpy(&dst[BMP_OFFSET], buffer, bufferSize);
+    Image *pImage = (Image *)malloc(sizeof(Image));
+    pImage->width = width;
+    pImage->height = height;
+    pImage->compressedSize = bufferSize;
+    pImage->data = (BYTE *)malloc(bufferSize);
+    memcpy(pImage->data, buffer, bufferSize);
     free(buffer);
-    return dst;
+
+    // BYTE *dst = (BYTE *)calloc(BMP_OFFSET + bufferSize, 1);
+    // ULONG *infos = (ULONG *)dst;
+    // infos[0] = width;
+    // infos[1] = width;
+    // infos[2] = bufferSize;
+    // memcpy(&dst[BMP_OFFSET], buffer, bufferSize);
+    // free(buffer);
+    return pImage;
 }

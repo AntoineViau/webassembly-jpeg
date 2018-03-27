@@ -39,26 +39,22 @@
       // When the instance has been loaded and compiled...
       onRuntimeInitialized: () => {
 
-        // When our C code will give us the bitmap, it will be prefixed
-        // with some meta data
-        const WIDTH_OFFSET = 0;
-        const HEIGHT_OFFSET = 4;
-        const COMPRESSED_SIZE_OFFSET = 8;
-        const BMP_OFFSET = 12;
-
-        // JS wrap of : BYTE* setSrcImage(BYTE* jpegData, ULONG size)
+        // JS wrap of : Image* setSrcImage(BYTE* jpegData, ULONG size)
         let setSrcImage = Module.cwrap('setSrcImage', 'number', ['number', 'number']);
-        // JS wrap of : BYTE* compress(ULONG quality)
+        // JS wrap of : Image* compress(ULONG quality)
         let compress = Module.cwrap('compress', 'number', ['number']);
         // Canvas
         let displayZone = {
           ctx: undefined,       // canvas context
-          bmpArray: undefined,  // bitmap 
-          imageData: undefined  // internal canvas bitmap
+          bmpArray: undefined,  // bitmap data
+          imageData: undefined  // internal canvas bitmap data
         };
-        let bitmap = {
+        // The following object maps the C Image structure
+        let image = {
           width: undefined,
           height: undefined,
+          compressedSize: undefined,
+          data: undefined
         }
 
         // Start point...
@@ -73,9 +69,11 @@
         }
 
         function initImage(rawJpeg) {
-          // response is an ArrayBuffer (not typed).
+          // the fetch response is an ArrayBuffer (not typed).
+          // We create a typed array from it.
           let rawJpegAsTypedArray = new Uint8Array(rawJpeg);
-          // We allocate a memory block inside our WebAssembly module
+          // We allocate a memory block inside our WebAssembly module using the libc malloc function
+          // given by the emscripten glue code.
           let srcBuf = Module._malloc(rawJpegAsTypedArray.length * rawJpegAsTypedArray.BYTES_PER_ELEMENT);
           // We copy the typed array to the memory block
           // Important : this memory block is a part of the heap. 
@@ -89,40 +87,35 @@
           // We give setSrcImage the pointer to the raw Jpeg data in the heap.
           // This function will return information about the bitmap :
           // { ULONG width; ULONG height; ULONG compressedSize; BYTE* bmpData; }
-          let srcBmpBuf = setSrcImage(srcBuf, rawJpegAsTypedArray.length);
+          let pImage = setSrcImage(srcBuf, rawJpegAsTypedArray.length);
           // We get width and height from these informations
-          bitmap.width = Module.getValue(srcBmpBuf + WIDTH_OFFSET, 'i32');
-          bitmap.height = Module.getValue(srcBmpBuf + HEIGHT_OFFSET, 'i32');
+          image.width = Module.getValue(pImage + 0, 'i32');
+          image.height = Module.getValue(pImage + 4, 'i32');
           // We known our WebAssembly code will not use anymore the allocated memory block.
           Module._free(srcBuf);
           // And we will not need the raw data anymore.
           delete rawJpegAsTypedArray;
         }
 
-        // Will display the image in a canvas.
-        // Image data are provided through a typed array.
-        // The doc says Uint8ClampedArray but it does not work (colors are melted).
-        // So we create a Uint8Array a assign it to the canvas context.
         function createDisplayZone() {
           let canvas = document.createElement('canvas');
-          canvas.width = bitmap.width;
-          canvas.height = bitmap.height;
+          canvas.width = image.width;
+          canvas.height = image.height;
           document.getElementById('image-container').appendChild(canvas);
           displayZone.ctx = canvas.getContext('2d');
-          displayZone.bmpArray = new Uint8Array(bitmap.width * bitmap.height * 4).fill(0xff);
-          displayZone.imageData = displayZone.ctx.createImageData(bitmap.width, bitmap.height);
+          // The MSDN doc says Uint8ClampedArray but it does not work (colors are melted).
+          displayZone.bmpArray = new Uint8Array(image.width * image.height * 4).fill(0xff);
+          displayZone.imageData = displayZone.ctx.createImageData(image.width, image.height);
         }
 
         function display(bmpPtr) {
-          let bmpDataPtr = bmpPtr + BMP_OFFSET;
-
           // Unfortunatly, bitmap pixels are RGB and canvas expects RGBA.
-          // So we have to write pixel by pixel, and it is slow !
-          // The canvas Alpha is set in createDisplayZone()
+          // So we have to convert pixel by pixel, and it is slow !
+          // The canvas Alpha is set in createDisplayZone() with fill(0xff)
           // To improve performance, we should make the Web Assembly code
           // do the pixel conversion into an allocated RGBA pixels space.
-          let len = bitmap.width * bitmap.height * 4;
-          for (let ptr = bmpDataPtr, iDst = 0; iDst < len; ptr += 3, iDst += 4) {
+          let len = image.width * image.height * 4;
+          for (let ptr = image.data, iDst = 0; iDst < len; ptr += 3, iDst += 4) {
             displayZone.bmpArray[iDst + 0] = Module.getValue(ptr + 0, 'i8');
             displayZone.bmpArray[iDst + 1] = Module.getValue(ptr + 1, 'i8');
             displayZone.bmpArray[iDst + 2] = Module.getValue(ptr + 2, 'i8');
@@ -130,14 +123,15 @@
 
           // Following is an aborted performance optimization.
           // Problem comes from memory alignment : read RGB to write RGBA
-          // implies moving from 3 bytes to 3 bytes. When reading with getValue
-          // an i32 value, we are unaligned. As the doc says, results may be
+          // implies moving from 3 bytes to 3 bytes. When reading a i32 value with 
+          // getValue, we are unaligned. As the doc says, results may be
           // unpredictable.
           // To ensure alignment you add -s SAFE_HEAP=1 to your emcc, 
           // the getValue will then crash.
-          // let buf32 = new Uint32Array(bitmap.width * bitmap.height * 4);
-          // let len = bitmap.width * bitmap.height;
-          // for (let ptr = bmpDataPtr, iDst = 0; iDst < len; ptr += 4, iDst += 1) {
+          //
+          // let buf32 = new Uint32Array(image.width * image.height * 4);
+          // let len = image.width * image.height;
+          // for (let ptr = image.data, iDst = 0; iDst < len; ptr += 4, iDst += 1) {
           //     let bytes = Module.getValue(ptr, 'i32'); // = RGBR, BRxx, B000                        
           //     let a = 255;
           //     let r = (bytes & 0xff000000) >> 24;
@@ -157,15 +151,17 @@
         function update(quality) {
           // Call the WebAssembly function compress()
           // It will compress the bitmap image to Jpeg with given quality value.
-          // Then it will decompress back and return the bitmap structure (width, height, uncompressedSize, bmpDataPtr)
-          let bmpPtr = compress(quality);
-          let compressedSize = Module.getValue(bmpPtr + COMPRESSED_SIZE_OFFSET, 'i32');
-          document.getElementById('size').innerHTML = 'Quality:' + quality + ' / Weight: ' + (compressedSize / 1024).toFixed(2) + ' Kb';
+          // Then it will decompress back and return the bitmap structure (width, height, uncompressedSize, data)
+          let pImage = compress(quality);
+          image.compressedSize = getValue(pImage + 8, 'i32');
+          image.data = getValue(pImage + 12, 'i32');
+          document.getElementById('size').innerHTML = 'Quality:' + quality + ' / Weight: ' + (image.compressedSize / 1024).toFixed(2) + ' Kb';
           // Show it to the world
-          display(bmpPtr);
+          display();
           // The display function has copied the bitmap data to the canvas through
           // an Uint8Array. Si, we do not need the bitmap structure anymore.
-          Module._free(bmpPtr);
+          Module._free(image.data);
+          Module._free(pImage);
         }
 
         let slider = document.getElementById("quality");

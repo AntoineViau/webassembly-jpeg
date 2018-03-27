@@ -21,7 +21,7 @@ my_error_exit(j_common_ptr cinfo)
     longjmp(myerr->setjmp_buffer, 1);
 }
 
-GLOBAL(BYTE *)
+GLOBAL(Image *)
 readJpeg(BYTE *jpegData, ULONG dataSize)
 {
     struct jpeg_decompress_struct cinfo;
@@ -43,20 +43,19 @@ readJpeg(BYTE *jpegData, ULONG dataSize)
     ULONG width = cinfo.output_width;
     ULONG height = cinfo.output_height;
     int pixelSize = cinfo.output_components;
-    BYTE *dst = (BYTE *)malloc(BMP_OFFSET + width * height * pixelSize);
-    ULONG *infos = (ULONG *)dst;
-    infos[0] = width;
-    infos[1] = height;
-    infos[2] = dataSize;
-    BYTE *bmp = &dst[BMP_OFFSET];
+    Image *pImage = (Image *)malloc(sizeof(Image));
+    pImage->width = width;
+    pImage->height = height;
+    pImage->compressedSize = dataSize;
+    pImage->data = (BYTE *)malloc(width * height * pixelSize);
     row_stride = cinfo.output_width * cinfo.output_components;
     while (cinfo.output_scanline < cinfo.output_height)
     {
         BYTE *buffer_array[1];
-        buffer_array[0] = bmp + (cinfo.output_scanline) * row_stride;
+        buffer_array[0] = pImage->data + (cinfo.output_scanline) * row_stride;
         jpeg_read_scanlines(&cinfo, buffer_array, 1);
     }
     (void)jpeg_finish_decompress(&cinfo);
     jpeg_destroy_decompress(&cinfo);
-    return dst;
+    return pImage;
 }
