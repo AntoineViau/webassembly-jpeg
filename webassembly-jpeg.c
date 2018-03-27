@@ -137,6 +137,10 @@ BYTE *EMSCRIPTEN_KEEPALIVE setSrcImage(BYTE *jpegData, ULONG size)
     srcImageWidth = infos[0];
     srcImageHeight = infos[1];
     srcImageBmp = &src[BMP_OFFSET];
+    EM_ASM({
+        console.log('setSrcImage done');
+    });
+
     return src;
 }
 
@@ -147,5 +151,10 @@ BYTE *EMSCRIPTEN_KEEPALIVE compress(ULONG quality)
     ULONG compressedSize = infos[2];
     BYTE *ret = readJpeg(&compressed[BMP_OFFSET], compressedSize);
     free(compressed);
+    EM_ASM_({
+        console.log('compress with quality', $0, ' done');
+    },
+            quality);
+
     return ret;
 }
