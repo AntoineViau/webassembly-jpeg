@@ -5,10 +5,8 @@
 #include <setjmp.h>
 #include <emscripten/emscripten.h>
 
-typedef unsigned char BYTE;    // 1 byte
-typedef unsigned int UINT;     // 4 bytes int ?
-typedef unsigned long ULONG;   // 4 bytes int ?
-typedef unsigned short USHORT; // 2 bytes
+typedef unsigned char BYTE;  // 1 byte
+typedef unsigned long ULONG; // 4 bytes
 
 #define WIDTH_OFFSET 0
 #define HEIGHT_OFFSET 4
