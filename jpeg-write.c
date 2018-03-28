@@ -54,12 +54,5 @@ writeJpeg(BYTE *bmp, ULONG width, ULONG height, ULONG quality)
     memcpy(pImage->data, buffer, bufferSize);
     free(buffer);
 
-    // BYTE *dst = (BYTE *)calloc(BMP_OFFSET + bufferSize, 1);
-    // ULONG *infos = (ULONG *)dst;
-    // infos[0] = width;
-    // infos[1] = width;
-    // infos[2] = bufferSize;
-    // memcpy(&dst[BMP_OFFSET], buffer, bufferSize);
-    // free(buffer);
     return pImage;
 }
