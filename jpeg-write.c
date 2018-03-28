@@ -49,7 +49,7 @@ writeJpeg(BYTE *bmp, ULONG width, ULONG height, ULONG quality)
     Image *pImage = (Image *)malloc(sizeof(Image));
     pImage->width = width;
     pImage->height = height;
-    pImage->compressedSize = bufferSize;
+    pImage->size = bufferSize;
     pImage->data = (BYTE *)malloc(bufferSize);
     memcpy(pImage->data, buffer, bufferSize);
     free(buffer);

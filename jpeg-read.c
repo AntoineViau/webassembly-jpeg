@@ -46,7 +46,7 @@ readJpeg(BYTE *jpegData, ULONG dataSize)
     Image *pImage = (Image *)malloc(sizeof(Image));
     pImage->width = width;
     pImage->height = height;
-    pImage->compressedSize = dataSize;
+    pImage->size = dataSize;
     pImage->data = (BYTE *)malloc(width * height * pixelSize);
     row_stride = cinfo.output_width * cinfo.output_components;
     while (cinfo.output_scanline < cinfo.output_height)
