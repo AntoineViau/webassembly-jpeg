@@ -21,32 +21,38 @@
             let pImage = compress(buffer, dataSize, 1);
             let width = Module.getValue(pImage + 0, 'i32');
             let height = Module.getValue(pImage + 4, 'i32');
-            let pBitmapData = Module.getValue(pImage + 12, 'i32');
 
             let canvas = document.createElement('canvas');
             canvas.width = width;
             canvas.height = height;
             document.body.appendChild(canvas);
             let context = canvas.getContext('2d');
-
-            let canvasBitmap = new Uint8Array(
-              Module.HEAP8.buffer,
-              pBitmapData,
-              width * height * 4);
             let imageData = context.createImageData(width, height);
-            imageData.data.set(canvasBitmap);
-            context.putImageData(imageData, 0, 0);
-            Module._free(pBitmapData);
-            Module._free(pImage);
 
-            document.getElementById('slider').oninput = function () {
-              pImage = compress(buffer, dataSize, this.value);
+            function update(quality) {
+              let pImage = compress(buffer, dataSize, quality);
               let pBitmapData = Module.getValue(pImage + 12, 'i32');
-              canvasBitmap = new Uint8Array(Module.HEAP8.buffer, pBitmapData, width * height * 4);
+              let canvasBitmap = new Uint8Array(
+                Module.HEAP8.buffer,
+                pBitmapData,
+                width * height * 4);
               imageData.data.set(canvasBitmap);
               context.putImageData(imageData, 0, 0);
               Module._free(pBitmapData);
               Module._free(pImage);
+            }
+
+            update(1);
+
+            document.getElementById('slider').oninput = function () {
+              update(this.value);
+              // pImage = compress(buffer, dataSize, this.value);
+              // let pBitmapData = Module.getValue(pImage + 12, 'i32');
+              // canvasBitmap = new Uint8Array(Module.HEAP8.buffer, pBitmapData, width * height * 4);
+              // imageData.data.set(canvasBitmap);
+              // context.putImageData(imageData, 0, 0);
+              // Module._free(pBitmapData);
+              // Module._free(pImage);
             }
           })
       }
