@@ -12,17 +12,18 @@ Image *EMSCRIPTEN_KEEPALIVE compress(BYTE *jpegData, ULONG dataSize, ULONG quali
 
     int len = src->width * src->height * 4;
     BYTE *rgba = (BYTE *)malloc(len);
-    for (int i = 0, j = 0; i < len; i += 3, j += 4)
+    for (int i = 0, j = 0; i < len; i += 4, j += 3)
     {
-        rgba[j + 0] = uncompressed->data[i + 0];
-        rgba[j + 1] = uncompressed->data[i + 1];
-        rgba[j + 2] = uncompressed->data[i + 2];
-        rgba[j + 3] = 255;
+        rgba[i + 0] = uncompressed->data[j + 0];
+        rgba[i + 1] = uncompressed->data[j + 1];
+        rgba[i + 2] = uncompressed->data[j + 2];
+        rgba[i + 3] = 255;
     }
     free(src->data);
     free(src);
     free(compressed->data);
     free(compressed);
+    free(uncompressed->data);
     uncompressed->data = rgba;
     return uncompressed;
 }
