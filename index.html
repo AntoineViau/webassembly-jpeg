@@ -108,7 +108,7 @@
           displayZone.imageData = displayZone.ctx.createImageData(image.width, image.height);
         }
 
-        function display(bmpPtr) {
+        function display() {
           // Unfortunatly, bitmap pixels are RGB and canvas expects RGBA.
           // So we have to convert pixel by pixel, and it is slow !
           // The canvas Alpha is set in createDisplayZone() with fill(0xff)
