@@ -58,7 +58,7 @@
         }
 
         // Start point...
-        loadSrcImage("libjpeg/testimg.jpg");
+        loadSrcImage("kuva.jpg");
 
         function loadSrcImage(imgUrl) {
           fetch(imgUrl)
@@ -74,6 +74,7 @@
           let rawJpegAsTypedArray = new Uint8Array(rawJpeg);
           // We allocate a memory block inside our WebAssembly module using the libc malloc function
           // given by the emscripten glue code.
+          console.log(Module);
           let srcBuf = Module._malloc(rawJpegAsTypedArray.length * rawJpegAsTypedArray.BYTES_PER_ELEMENT);
           // We copy the typed array to the memory block
           // Important : this memory block is a part of the heap. 

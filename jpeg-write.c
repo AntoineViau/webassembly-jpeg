@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "libjpeg/jpeglib.h"
+#include <jpeglib.h>
 #include <setjmp.h>
 #include "webassembly-jpeg.h"
 
