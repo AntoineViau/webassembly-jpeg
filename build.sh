@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+emcc -o webassembly-jpeg.js jpeg-read.c jpeg-write.c webassembly-jpeg.c -s USE_LIBJPEG -O3 -s WASM=1 -s NO_EXIT_RUNTIME=1 -s 'EXPORTED_RUNTIME_METHODS=["writeArrayToMemory","getValue", "cwrap"]' -s EXPORTED_FUNCTIONS='['_malloc', '_free']'
