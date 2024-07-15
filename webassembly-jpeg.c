@@ -9,7 +9,7 @@ Image *pSrcImage;
 Image *EMSCRIPTEN_KEEPALIVE setSrcImage(BYTE *jpegData, ULONG size)
 {
     pSrcImage = readJpeg(jpegData, size);
-    EM_ASM({ console.log('setSrcImage done'); });
+    // EM_ASM({ console.log('setSrcImage done'); });
     return pSrcImage;
 }
 
@@ -23,7 +23,7 @@ Image *EMSCRIPTEN_KEEPALIVE compress(ULONG quality)
     free(pCompressedImage->data);
     free(pCompressedImage);
 
-    EM_ASM_({ console.log('compress with quality', $0, ' done'); }, quality);
+    // EM_ASM_({ console.log('compress with quality', $0, ' done'); }, quality);
 
     return pDecompressedImage;
 }
